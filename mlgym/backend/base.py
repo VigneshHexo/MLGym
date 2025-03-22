@@ -53,6 +53,7 @@ class ModelArguments(FrozenSerializable):
     # additional kwargs to pass to litellm.completion
     completion_kwargs: dict[str, Any] = field(default_factory=dict)
 
+    vertex_credentials_path: str | None = None
 
 @dataclass
 class APIStats(Serializable):
