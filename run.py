@@ -33,6 +33,9 @@ from mlgym.utils.config import load_environment_variables
 from mlgym.utils.extras import get_devices, multiline_representer
 from mlgym.utils.log import add_file_handler, get_logger
 
+import dotenv
+dotenv.load_dotenv()
+
 try:
     import rich
 except ModuleNotFoundError as e:
@@ -247,11 +250,15 @@ def get_args(args=None) -> ScriptArguments:
         ),
         agent=AgentArguments(
             model=ModelArguments(
-                model_name="litellm:gpt-4o",
-                total_cost_limit=0.0,
-                per_instance_cost_limit=3.0,
+                model_name=f"litellm:{os.getenv('MODEL_NAME', 'vertex_ai/claude-3-7-sonnet@20250219')}",
+                total_cost_limit=os.getenv("TOTAL_COST_LIMIT", 0.0),
+                per_instance_cost_limit=os.getenv("PER_INSTANCE_COST_LIMIT", 3.0),
                 temperature=0.0,
                 top_p=0.95,
+                host_url=os.getenv("API_BASE_URL"),
+                api_key=os.getenv("API_KEY"),
+                api_version=os.getenv("API_VERSION"),
+                vertex_credentials_path=os.getenv("VERTEX_CREDENTIALS_PATH"),
             ),
             agent_config_path=CONFIG_DIR / "agents" / "default.yaml",
         ),

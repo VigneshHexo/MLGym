@@ -36,12 +36,41 @@ class LiteLLMModel(BaseModel):
         
     
     def _setup_client(self):
+        # Extract the model name without the "litellm:" prefix
         self.model_name = self.args.model_name.split(":")[1]
         self.model_max_input_tokens = litellm.model_cost.get(self.model_name, {}).get("max_input_tokens")
         self.model_max_output_tokens = litellm.model_cost.get(self.model_name, {}).get("max_output_tokens")
         self.lm_provider = litellm.model_cost.get(self.model_name, {}).get("litellm_provider")
-        if self.lm_provider is None and self.args.host_url is not None:
-            # ! TODO: Add an option to provide custom model metadata.
+        
+        # Handle Azure configuration - check after removing "litellm:" prefix
+        if self.model_name.startswith("azure/"):
+            if hasattr(self.args, "api_key") and hasattr(self.args, "host_url"):
+                self.logger.info(f"Configuring Azure OpenAI: {self.args.host_url}")
+                # Configure Azure-specific settings
+                litellm.api_key = self.args.api_key
+                litellm.api_base = self.args.host_url
+                if hasattr(self.args, "api_version"):
+                    litellm.api_version = self.args.api_version
+            else:
+                self.logger.warning("Azure model specified but missing azure_api_key or azure_endpoint")
+        
+        # Handle Vertex AI configuration - check after removing "litellm:" prefix
+        elif self.model_name.startswith("vertex_ai/"):
+            self.logger.info("Configuring Vertex AI")
+            if hasattr(self.args, "vertex_project") and hasattr(self.args, "vertex_location", "us-east5"):
+                os.environ["GOOGLE_CLOUD_PROJECT"] = self.args.vertex_project
+                os.environ["VERTEXAI_PROJECT"] = self.args.vertex_project
+                os.environ["VERTEXAI_LOCATION"] = self.args.vertex_location
+                
+                # Set credentials file if provided
+                if hasattr(self.args, "vertex_credentials_path"):
+                    self.logger.info(f"Using Vertex AI credentials from: {self.args.vertex_credentials_path}")
+            else:
+                self.logger.warning("Vertex AI model specified but missing vertex_project or vertex_location")
+                
+        # General host_url handling for custom endpoints
+        elif self.lm_provider is None and self.args.host_url is not None:
+            # For custom API endpoints
             self.logger.warning(f"Using a custom API base: {self.args.host_url}. Cost management and context length error checking will not work.")
 
     def update_stats(self, input_tokens: int, output_tokens: int, cost: float = 0.0) -> float:
@@ -100,6 +129,20 @@ class LiteLLMModel(BaseModel):
         extra_args = {}
         if self.args.host_url:
             extra_args["api_base"] = self.args.host_url
+
+        # Azure-specific configuration
+        if self.model_name.startswith("azure/"):
+            if hasattr(self.args, "api_version"):
+                extra_args["api_version"] = self.args.api_version
+            if hasattr(self.args, "api_key"):
+                extra_args["api_key"] = self.args.api_key
+                
+        # Vertex AI-specific configuration - updated prefix to vertex_ai/
+        elif self.model_name.startswith("vertex_ai/"):
+            if hasattr(self.args, "vertex_project"):
+                extra_args["vertex_project"] = self.args.vertex_project
+            if hasattr(self.args, "vertex_location"):
+                extra_args["vertex_location"] = self.args.vertex_location
 
         completion_kwargs = self.args.completion_kwargs
         if self.lm_provider == "anthropic":
