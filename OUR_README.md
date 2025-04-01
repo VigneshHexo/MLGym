@@ -140,3 +140,12 @@ streamlit run demo/demo.py
 ```
 
 This interactive interface allows you to explore experiment outcomes and agent interactions.
+
+## Commands running on Vignesh Server
+```bash
+python run.py   --container_type docker   --task_config_path tasks/imageClassificationCifar10.yaml   --model litellm:vertex_ai/claude-3-7-sonnet@20250219 --per_instance_cost_limit 4.00   --agent_config_path configs/agents/default.yaml   --temp 1   --gpus 0   --max_steps 50   --aliases_file ./docker/aliases.sh
+```
+
+```bash
+python run.py --task_config_path tasks/imageClassificationCifar10.yaml
+```
